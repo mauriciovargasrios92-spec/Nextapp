@@ -5,21 +5,29 @@ import { Screen, Statement, Subtext, PrimaryButton, TextLink } from "./ui";
 import { useAppStore } from "@/lib/store";
 import { track } from "@/lib/analytics";
 
-// Ciclo de respiración: 4s inhale, 4s hold, 6s exhale, 4s hold = 18s por ciclo.
-const INHALE_MS = 4000;
-const HOLD1_MS = 4000;
-const EXHALE_MS = 6000;
-const HOLD2_MS = 4000;
-const CYCLE_MS = INHALE_MS + HOLD1_MS + EXHALE_MS + HOLD2_MS; // 18000
+// Ciclo de respiración: 4s inhale, 4s hold, 6s exhale, 6s hold = 20s por ciclo.
+// 60s / 20s = exactamente 3 ciclos completos.
+const INHALE_S = 4;
+const HOLD1_S = 4;
+const EXHALE_S = 6;
+const HOLD2_S = 6;
+const CYCLE_S = INHALE_S + HOLD1_S + EXHALE_S + HOLD2_S; // 20
 const TOTAL_SECONDS = 60;
+const TOTAL_CYCLES = TOTAL_SECONDS / CYCLE_S; // 3
 
 type Phase = "inhale" | "hold1" | "exhale" | "hold2";
 
-function getPhase(elapsedInCycle: number): Phase {
-  if (elapsedInCycle < INHALE_MS) return "inhale";
-  if (elapsedInCycle < INHALE_MS + HOLD1_MS) return "hold1";
-  if (elapsedInCycle < INHALE_MS + HOLD1_MS + EXHALE_MS) return "exhale";
-  return "hold2";
+function getPhaseInfo(elapsedInCycle: number): { phase: Phase; count: number } {
+  if (elapsedInCycle < INHALE_S) {
+    return { phase: "inhale", count: elapsedInCycle + 1 };
+  }
+  if (elapsedInCycle < INHALE_S + HOLD1_S) {
+    return { phase: "hold1", count: elapsedInCycle - INHALE_S + 1 };
+  }
+  if (elapsedInCycle < INHALE_S + HOLD1_S + EXHALE_S) {
+    return { phase: "exhale", count: elapsedInCycle - INHALE_S - HOLD1_S + 1 };
+  }
+  return { phase: "hold2", count: elapsedInCycle - INHALE_S - HOLD1_S - EXHALE_S + 1 };
 }
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -29,16 +37,32 @@ const PHASE_LABEL: Record<Phase, string> = {
   hold2: "Hold",
 };
 
+function speak(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  try {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.82;
+    utterance.pitch = 0.75;
+    utterance.volume = 0.9;
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // Si la voz no está disponible, la respiración sigue funcionando sin ella.
+  }
+}
+
+type Stage = "preStart" | "countdown" | "breathing" | "done";
+
 export default function Breathing() {
-  const [started, setStarted] = useState(false);
+  const [stage, setStage] = useState<Stage>("preStart");
+  const [countdownValue, setCountdownValue] = useState(3);
   const [phase, setPhase] = useState<Phase>("inhale");
   const [secondsLeft, setSecondsLeft] = useState(TOTAL_SECONDS);
-  const [done, setDone] = useState(false);
   const setView = useAppStore((s) => s.setView);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const gainRef = useRef<GainNode | null>(null);
+  const lastSpokenKeyRef = useRef<string>("");
 
   function startAudio() {
     try {
@@ -89,10 +113,11 @@ export default function Breathing() {
     audioCtxRef.current = null;
     gainRef.current = null;
     oscillatorsRef.current = [];
+    window.speechSynthesis?.cancel();
   }
 
   function handleStart() {
-    setStarted(true);
+    setStage("countdown");
     startAudio();
     track("breathing_started");
   }
@@ -103,42 +128,89 @@ export default function Breathing() {
   }
 
   useEffect(() => {
-    if (!started) return;
+    if (stage !== "countdown") return;
+
+    setCountdownValue(3);
+    speak("3");
+    const t2 = setTimeout(() => {
+      setCountdownValue(2);
+      speak("2");
+    }, 1000);
+    const t1 = setTimeout(() => {
+      setCountdownValue(1);
+      speak("1");
+    }, 2000);
+    const tGo = setTimeout(() => {
+      setStage("breathing");
+    }, 3000);
+
+    return () => {
+      clearTimeout(t2);
+      clearTimeout(t1);
+      clearTimeout(tGo);
+    };
+  }, [stage]);
+
+  useEffect(() => {
+    if (stage !== "breathing") return;
 
     const startTime = Date.now();
+    lastSpokenKeyRef.current = "";
 
-    const phaseTimer = setInterval(() => {
-      const elapsedInCycle = (Date.now() - startTime) % CYCLE_MS;
-      setPhase(getPhase(elapsedInCycle));
-    }, 100);
+    const tick = () => {
+      const elapsedMs = Date.now() - startTime;
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      const remaining = Math.max(TOTAL_SECONDS - elapsedSec, 0);
+      setSecondsLeft(remaining);
 
-    const secondsTimer = setInterval(() => {
-      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-      setSecondsLeft(Math.max(TOTAL_SECONDS - elapsedSeconds, 0));
-    }, 250);
+      if (elapsedSec >= TOTAL_SECONDS) return;
+
+      const cycleIndex = Math.floor(elapsedSec / CYCLE_S);
+      const elapsedInCycle = elapsedSec % CYCLE_S;
+      const { phase: currentPhase, count } = getPhaseInfo(elapsedInCycle);
+      setPhase(currentPhase);
+
+      const key = `${elapsedSec}`;
+      if (lastSpokenKeyRef.current !== key) {
+        lastSpokenKeyRef.current = key;
+        const isLastCycle = cycleIndex === TOTAL_CYCLES - 1;
+        if (count === 1) {
+          if (currentPhase === "inhale") {
+            speak(isLastCycle ? "Last breath" : "Breathe in");
+          } else if (currentPhase === "exhale") {
+            speak("Breathe out");
+          } else {
+            speak("Hold");
+          }
+        } else {
+          speak(String(count));
+        }
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 200);
 
     const endTimer = setTimeout(() => {
-      clearInterval(phaseTimer);
-      clearInterval(secondsTimer);
+      clearInterval(interval);
       stopAudio();
       track("breathing_completed");
-      setDone(true);
+      setStage("done");
       setTimeout(() => setView("next-action"), 900);
     }, TOTAL_SECONDS * 1000);
 
     return () => {
-      clearInterval(phaseTimer);
-      clearInterval(secondsTimer);
+      clearInterval(interval);
       clearTimeout(endTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started]);
+  }, [stage]);
 
   useEffect(() => {
     return () => stopAudio();
   }, []);
 
-  if (done) {
+  if (stage === "done") {
     return (
       <Screen>
         <Statement>Ready.</Statement>
@@ -146,22 +218,30 @@ export default function Breathing() {
     );
   }
 
-  if (!started) {
+  if (stage === "preStart") {
     return (
       <Screen>
         <div className="flex flex-col gap-3">
           <Statement>Reset.</Statement>
           <Subtext>60 seconds. Nothing else.</Subtext>
         </div>
-        <div className="rounded-2xl border border-stone-light bg-white/50 px-5 py-4">
-          <p className="text-[14px] text-stone">
-            Best used with headphones.
-          </p>
+        <div className="rounded-2xl border border-stone-light bg-white/50 px-5 py-4 flex flex-col gap-1">
+          <p className="text-[14px] text-stone">Best used with headphones.</p>
+          <p className="text-[14px] text-stone">Close your eyes when you're ready.</p>
         </div>
         <div className="w-full flex flex-col gap-4">
           <PrimaryButton onClick={handleStart}>Start</PrimaryButton>
           <TextLink onClick={() => setView("next-action")}>Skip</TextLink>
         </div>
+      </Screen>
+    );
+  }
+
+  if (stage === "countdown") {
+    return (
+      <Screen>
+        <Subtext>Get ready.</Subtext>
+        <p className="font-display text-[64px] text-ink">{countdownValue}</p>
       </Screen>
     );
   }
@@ -175,7 +255,7 @@ export default function Breathing() {
       <div className="h-56 w-56 flex items-center justify-center">
         <div
           className="h-40 w-40 rounded-full bg-accent/25 border border-accent-soft/40"
-          style={{ animation: "breathe-cycle 18s ease-in-out infinite" }}
+          style={{ animation: "breathe-cycle 20s ease-in-out infinite" }}
         />
       </div>
 
@@ -191,13 +271,13 @@ export default function Breathing() {
           0% {
             transform: scale(0.55);
           }
-          22.22% {
+          20% {
             transform: scale(1);
           }
-          44.44% {
+          40% {
             transform: scale(1);
           }
-          77.78% {
+          70% {
             transform: scale(0.55);
           }
           100% {

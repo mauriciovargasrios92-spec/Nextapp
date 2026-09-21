@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Screen, Statement, SecondaryButton, PrimaryButton, TextLink } from "./ui";
+import { Screen, Statement, SecondaryButton, TextLink } from "./ui";
 import { useAppStore } from "@/lib/store";
 import type { StuckReason } from "@/lib/types";
 
@@ -13,7 +13,6 @@ const OPTIONS: { reason: StuckReason; label: string }[] = [
 ];
 
 export default function Stuck() {
-  const [offerReset, setOfferReset] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const tasks = useAppStore((s) => s.tasks);
@@ -26,7 +25,7 @@ export default function Stuck() {
 
   async function handleOption(reason: StuckReason) {
     if (reason === "overwhelmed") {
-      setOfferReset(true);
+      setView("reset");
       return;
     }
 
@@ -65,18 +64,6 @@ export default function Stuck() {
     }
   }
 
-  if (offerReset) {
-    return (
-      <Screen>
-        <Statement>Reset for 60 seconds?</Statement>
-        <div className="w-full flex flex-col gap-4">
-          <PrimaryButton onClick={() => setView("breathing")}>Yes</PrimaryButton>
-          <TextLink onClick={() => setView("next-action")}>Skip</TextLink>
-        </div>
-      </Screen>
-    );
-  }
-
   return (
     <Screen>
       <Statement>What&apos;s getting in the way?</Statement>
@@ -91,7 +78,12 @@ export default function Stuck() {
           </SecondaryButton>
         ))}
       </div>
-      <TextLink onClick={() => setView("next-action")}>Back</TextLink>
+      <div className="flex flex-col items-center gap-4">
+        <TextLink disabled={loading} onClick={() => setView("reset")}>
+          Or take a quick reset
+        </TextLink>
+        <TextLink onClick={() => setView("next-action")}>Back</TextLink>
+      </div>
     </Screen>
   );
 }

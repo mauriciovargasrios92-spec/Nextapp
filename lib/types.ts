@@ -33,5 +33,6 @@ export type ViewState =
   | "next-action"
   | "stuck"
   | "breathing"
+  | "reset"
   | "focus"
   | "completion";

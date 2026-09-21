@@ -8,6 +8,7 @@ import Processing from "@/components/Processing";
 import NextAction from "@/components/NextAction";
 import Stuck from "@/components/Stuck";
 import Breathing from "@/components/Breathing";
+import ResetExercises from "@/components/ResetExercises";
 import Focus from "@/components/Focus";
 import Completion from "@/components/Completion";
 
@@ -29,6 +30,8 @@ export default function Home() {
       return <Stuck />;
     case "breathing":
       return <Breathing />;
+    case "reset":
+      return <ResetExercises />;
     case "focus":
       return <Focus />;
     case "completion":

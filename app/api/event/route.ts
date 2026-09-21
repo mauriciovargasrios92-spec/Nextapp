@@ -11,6 +11,8 @@ const VALID_EVENTS = [
   "stuck_clicked",
   "breathing_started",
   "breathing_completed",
+  "reset_started",
+  "reset_completed",
 ] as const;
 
 export async function POST(req: NextRequest) {

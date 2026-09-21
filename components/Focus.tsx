@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Screen, Statement, PrimaryButton, SecondaryButton, TextLink } from "./ui";
 import { useAppStore } from "@/lib/store";
 import { track } from "@/lib/analytics";
+import { t } from "@/lib/i18n";
 
 function formatTime(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60)
@@ -16,6 +17,7 @@ function formatTime(totalSeconds: number) {
 }
 
 export default function Focus() {
+  const locale = useAppStore((s) => s.locale);
   const tasks = useAppStore((s) => s.tasks);
   const currentTaskId = useAppStore((s) => s.currentTaskId);
   const setView = useAppStore((s) => s.setView);
@@ -65,9 +67,11 @@ export default function Focus() {
       </div>
 
       <div className="w-full flex flex-col gap-4">
-        <PrimaryButton onClick={handleDone}>Done</PrimaryButton>
-        <SecondaryButton onClick={() => setView("stuck")}>I&apos;m stuck</SecondaryButton>
-        <TextLink onClick={handleStop}>Stop</TextLink>
+        <PrimaryButton onClick={handleDone}>{t(locale, "common.done")}</PrimaryButton>
+        <SecondaryButton onClick={() => setView("stuck")}>
+          {t(locale, "common.stuck")}
+        </SecondaryButton>
+        <TextLink onClick={handleStop}>{t(locale, "focus.stop")}</TextLink>
       </div>
     </Screen>
   );

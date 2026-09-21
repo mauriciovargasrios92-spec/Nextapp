@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { Screen, Statement, SecondaryButton, PrimaryButton } from "./ui";
 import { useAppStore } from "@/lib/store";
+import { t } from "@/lib/i18n";
 
 type Feeling = "easy" | "fine" | "hard";
 
 export default function Completion() {
   const [stage, setStage] = useState<"feeling" | "ready">("feeling");
+  const locale = useAppStore((s) => s.locale);
   const tasks = useAppStore((s) => s.tasks);
   const currentTaskId = useAppStore((s) => s.currentTaskId);
   const markTaskStatus = useAppStore((s) => s.markTaskStatus);
@@ -31,12 +33,18 @@ export default function Completion() {
   if (stage === "feeling") {
     return (
       <Screen>
-        <Statement>Done.</Statement>
+        <Statement>{t(locale, "completion.done")}</Statement>
         <div className="flex flex-col gap-3 w-full">
-          <p className="text-[16px] text-stone mb-1">How did that feel?</p>
-          <SecondaryButton onClick={() => handleFeeling("easy")}>Easy</SecondaryButton>
-          <SecondaryButton onClick={() => handleFeeling("fine")}>Fine</SecondaryButton>
-          <SecondaryButton onClick={() => handleFeeling("hard")}>Hard</SecondaryButton>
+          <p className="text-[16px] text-stone mb-1">{t(locale, "completion.howDidItFeel")}</p>
+          <SecondaryButton onClick={() => handleFeeling("easy")}>
+            {t(locale, "completion.easy")}
+          </SecondaryButton>
+          <SecondaryButton onClick={() => handleFeeling("fine")}>
+            {t(locale, "completion.fine")}
+          </SecondaryButton>
+          <SecondaryButton onClick={() => handleFeeling("hard")}>
+            {t(locale, "completion.hard")}
+          </SecondaryButton>
         </div>
       </Screen>
     );
@@ -47,12 +55,14 @@ export default function Completion() {
   return (
     <Screen>
       <Statement>
-        {remaining > 0 ? "Ready for the next one?" : "That was everything."}
+        {remaining > 0 ? t(locale, "completion.readyForNext") : t(locale, "completion.everything")}
       </Statement>
       {remaining > 0 ? (
-        <PrimaryButton onClick={handleShowMe}>Show me</PrimaryButton>
+        <PrimaryButton onClick={handleShowMe}>{t(locale, "completion.showMe")}</PrimaryButton>
       ) : (
-        <PrimaryButton onClick={() => setView("dump")}>New brain dump</PrimaryButton>
+        <PrimaryButton onClick={() => setView("dump")}>
+          {t(locale, "completion.newDump")}
+        </PrimaryButton>
       )}
     </Screen>
   );

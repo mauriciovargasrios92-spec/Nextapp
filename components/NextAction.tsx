@@ -3,8 +3,10 @@
 import { Screen, Statement, SmallLabel, PrimaryButton, TextLink } from "./ui";
 import { useAppStore } from "@/lib/store";
 import { track } from "@/lib/analytics";
+import { t } from "@/lib/i18n";
 
 export default function NextAction() {
+  const locale = useAppStore((s) => s.locale);
   const tasks = useAppStore((s) => s.tasks);
   const currentTaskId = useAppStore((s) => s.currentTaskId);
   const setView = useAppStore((s) => s.setView);
@@ -19,8 +21,10 @@ export default function NextAction() {
   if (!task) {
     return (
       <Screen>
-        <Statement>All clear.</Statement>
-        <TextLink onClick={() => setView("dump")}>Start a new brain dump</TextLink>
+        <Statement>{t(locale, "nextAction.allClear")}</Statement>
+        <TextLink onClick={() => setView("dump")}>
+          {t(locale, "nextAction.newDump")}
+        </TextLink>
       </Screen>
     );
   }
@@ -48,20 +52,22 @@ export default function NextAction() {
   return (
     <Screen>
       <div className="flex flex-col gap-4">
-        <SmallLabel>Forget the rest for now.</SmallLabel>
+        <SmallLabel>{t(locale, "nextAction.forgetRest")}</SmallLabel>
         <Statement>{task.first_step ?? task.title}</Statement>
-        <SmallLabel>About {task.estimated_minutes} min</SmallLabel>
+        <SmallLabel>{t(locale, "nextAction.about", { n: task.estimated_minutes })}</SmallLabel>
       </div>
 
       <div className="w-full flex flex-col gap-4">
-        <PrimaryButton onClick={handleStart}>Start</PrimaryButton>
+        <PrimaryButton onClick={handleStart}>{t(locale, "common.start")}</PrimaryButton>
         <div className="flex justify-center gap-6">
-          <TextLink onClick={handleStuck}>I&apos;m stuck</TextLink>
-          <TextLink onClick={handleNotNow}>Not now</TextLink>
+          <TextLink onClick={handleStuck}>{t(locale, "common.stuck")}</TextLink>
+          <TextLink onClick={handleNotNow}>{t(locale, "nextAction.notNow")}</TextLink>
         </div>
       </div>
 
-      {waitingCount > 0 && <SmallLabel>{waitingCount} things waiting</SmallLabel>}
+      {waitingCount > 0 && (
+        <SmallLabel>{t(locale, "nextAction.waiting", { n: waitingCount })}</SmallLabel>
+      )}
     </Screen>
   );
 }

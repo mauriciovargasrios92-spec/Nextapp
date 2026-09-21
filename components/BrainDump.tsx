@@ -5,15 +5,14 @@ import { Screen, Statement, PrimaryButton } from "./ui";
 import { useAppStore } from "@/lib/store";
 import { supabase, getCurrentUserId, DEMO_USER_ID } from "@/lib/supabase";
 import { track } from "@/lib/analytics";
+import { t } from "@/lib/i18n";
 import { v4 as uuidv4 } from "uuid";
 import type { AIRecommendation } from "@/lib/types";
-
-const PLACEHOLDER =
-  "I need to reply to Sarah, send an invoice, work out, buy groceries, edit a video…";
 
 export default function BrainDump() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const locale = useAppStore((s) => s.locale);
   const startDump = useAppStore((s) => s.startDump);
   const setTasks = useAppStore((s) => s.setTasks);
   const setView = useAppStore((s) => s.setView);
@@ -69,20 +68,20 @@ export default function BrainDump() {
   return (
     <Screen>
       <div className="w-full flex flex-col gap-6">
-        <Statement>What&apos;s on your mind?</Statement>
+        <Statement>{t(locale, "dump.title")}</Statement>
         <div className="relative w-full">
           <textarea
             autoFocus
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={PLACEHOLDER}
+            placeholder={t(locale, "dump.placeholder")}
             rows={7}
             className="w-full resize-none rounded-2xl border border-stone-light bg-white/60 p-5 pr-14 text-[16px] leading-relaxed text-ink placeholder:text-stone/70 focus:border-accent-soft outline-none"
           />
           <button
             type="button"
-            aria-label="Entrada de voz (próximamente)"
-            title="Entrada de voz (próximamente)"
+            aria-label={t(locale, "dump.voice")}
+            title={t(locale, "dump.voice")}
             className="absolute bottom-4 right-4 h-9 w-9 rounded-full border border-stone-light flex items-center justify-center text-stone hover:text-ink hover:border-stone transition-colors"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -102,7 +101,7 @@ export default function BrainDump() {
         </div>
       </div>
       <PrimaryButton onClick={handleClearMyHead} disabled={!text.trim() || loading}>
-        {loading ? "Clearing…" : "Clear my head"}
+        {loading ? t(locale, "dump.loading") : t(locale, "dump.cta")}
       </PrimaryButton>
     </Screen>
   );

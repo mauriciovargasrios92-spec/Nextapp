@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import Onboarding1 from "@/components/Onboarding1";
 import Onboarding2 from "@/components/Onboarding2";
@@ -14,6 +15,11 @@ import Completion from "@/components/Completion";
 
 export default function Home() {
   const view = useAppStore((s) => s.view);
+  const initLocale = useAppStore((s) => s.initLocale);
+
+  useEffect(() => {
+    initLocale();
+  }, [initLocale]);
 
   switch (view) {
     case "onboarding-1":

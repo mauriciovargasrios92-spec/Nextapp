@@ -1,5 +1,22 @@
 import { create } from "zustand";
 import type { StuckReason, Task, ViewState } from "./types";
+import type { Locale } from "./i18n";
+
+const LOCALE_KEY = "next-locale";
+
+// localStorage primero; si no hay nada guardado, navigator.language ("es*" -> es, resto -> en).
+function detectLocale(): Locale {
+  try {
+    const saved = localStorage.getItem(LOCALE_KEY);
+    if (saved === "en" || saved === "es") return saved;
+  } catch {
+    // localStorage puede no estar disponible (modo privado, SSR).
+  }
+  if (typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("es")) {
+    return "es";
+  }
+  return "en";
+}
 
 interface AppState {
   view: ViewState;
@@ -9,7 +26,10 @@ interface AppState {
   currentTaskId: string | null;
   stuckReason: StuckReason | null;
   breathingReturnView: ViewState;
+  locale: Locale;
 
+  setLocale: (locale: Locale) => void;
+  initLocale: () => void;
   setView: (v: ViewState) => void;
   startDump: (brainDumpId: string, text: string) => void;
   setTasks: (tasks: Task[], recommendedId: string) => void;
@@ -33,6 +53,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentTaskId: null,
   stuckReason: null,
   breathingReturnView: "next-action",
+  // Siempre "en" en el primer render para que coincida con el HTML del servidor;
+  // initLocale() detecta el idioma real en el cliente al montar la app.
+  locale: "en",
+
+  setLocale: (locale) => {
+    set({ locale });
+    try {
+      localStorage.setItem(LOCALE_KEY, locale);
+    } catch {
+      // Sin localStorage la preferencia solo dura la sesión.
+    }
+    if (typeof document !== "undefined") document.documentElement.lang = locale;
+  },
+
+  initLocale: () => get().setLocale(detectLocale()),
 
   setView: (v) => set({ view: v }),
 

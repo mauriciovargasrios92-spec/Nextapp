@@ -3,18 +3,20 @@
 import { useState } from "react";
 import { Screen, Statement, SecondaryButton, TextLink } from "./ui";
 import { useAppStore } from "@/lib/store";
+import { t, type TranslationKey } from "@/lib/i18n";
 import type { StuckReason } from "@/lib/types";
 
-const OPTIONS: { reason: StuckReason; label: string }[] = [
-  { reason: "too_big", label: "It feels too big" },
-  { reason: "dont_know_how", label: "I don't know how to start" },
-  { reason: "low_energy", label: "I don't have the energy" },
-  { reason: "overwhelmed", label: "I'm overwhelmed" },
+const OPTIONS: { reason: StuckReason; label: TranslationKey }[] = [
+  { reason: "too_big", label: "stuck.tooBig" },
+  { reason: "dont_know_how", label: "stuck.dontKnowHow" },
+  { reason: "low_energy", label: "stuck.lowEnergy" },
+  { reason: "overwhelmed", label: "stuck.overwhelmed" },
 ];
 
 export default function Stuck() {
   const [loading, setLoading] = useState(false);
 
+  const locale = useAppStore((s) => s.locale);
   const tasks = useAppStore((s) => s.tasks);
   const currentTaskId = useAppStore((s) => s.currentTaskId);
   const setView = useAppStore((s) => s.setView);
@@ -66,7 +68,7 @@ export default function Stuck() {
 
   return (
     <Screen>
-      <Statement>What&apos;s getting in the way?</Statement>
+      <Statement>{t(locale, "stuck.title")}</Statement>
       <div className="w-full flex flex-col gap-3">
         {OPTIONS.map((opt) => (
           <SecondaryButton
@@ -74,15 +76,15 @@ export default function Stuck() {
             disabled={loading}
             onClick={() => handleOption(opt.reason)}
           >
-            {opt.label}
+            {t(locale, opt.label)}
           </SecondaryButton>
         ))}
       </div>
       <div className="flex flex-col items-center gap-4">
         <TextLink disabled={loading} onClick={() => setView("reset")}>
-          Or take a quick reset
+          {t(locale, "stuck.quickReset")}
         </TextLink>
-        <TextLink onClick={() => setView("next-action")}>Back</TextLink>
+        <TextLink onClick={() => setView("next-action")}>{t(locale, "common.back")}</TextLink>
       </div>
     </Screen>
   );

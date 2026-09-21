@@ -1,10 +1,46 @@
 "use client";
 
 import { ButtonHTMLAttributes, ReactNode } from "react";
+import { useAppStore } from "@/lib/store";
+import { LOCALES, t } from "@/lib/i18n";
+
+function LanguageSelector() {
+  const locale = useAppStore((s) => s.locale);
+  const setLocale = useAppStore((s) => s.setLocale);
+
+  return (
+    <div
+      role="group"
+      aria-label={t(locale, "language.label")}
+      className="absolute top-5 right-6 flex items-center gap-1.5 text-[12px] tracking-wide"
+    >
+      {LOCALES.map((code, i) => (
+        <span key={code} className="flex items-center gap-1.5">
+          {i > 0 && <span className="text-stone-light">·</span>}
+          {code === locale ? (
+            <span aria-current="true" className="font-medium text-ink">
+              {code.toUpperCase()}
+            </span>
+          ) : (
+            <button
+              type="button"
+              lang={code}
+              onClick={() => setLocale(code)}
+              className="text-stone hover:text-ink transition-colors"
+            >
+              {code.toUpperCase()}
+            </button>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export function Screen({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-screen w-full bg-paper flex items-center justify-center px-6 py-16">
+    <main className="relative min-h-screen w-full bg-paper flex items-center justify-center px-6 py-16">
+      <LanguageSelector />
       <div className="w-full max-w-sm flex flex-col items-center text-center gap-10">
         {children}
       </div>

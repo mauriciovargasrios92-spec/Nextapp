@@ -2,21 +2,25 @@
 
 import { Screen, Statement, Subtext, PrimaryButton } from "./ui";
 import { useAppStore } from "@/lib/store";
+import { t } from "@/lib/i18n";
 
 export default function Onboarding2() {
+  const locale = useAppStore((s) => s.locale);
   const setView = useAppStore((s) => s.setView);
 
   return (
     <Screen>
       <div className="flex flex-col gap-5">
-        <Statement>NEXT is not another to-do list.</Statement>
+        <Statement>{t(locale, "onboarding2.title")}</Statement>
         <Subtext>
-          You tell us what&apos;s on your mind.
+          {t(locale, "onboarding2.line1")}
           <br />
-          We show you one thing at a time.
+          {t(locale, "onboarding2.line2")}
         </Subtext>
       </div>
-      <PrimaryButton onClick={() => setView("dump")}>Continue</PrimaryButton>
+      <PrimaryButton onClick={() => setView("dump")}>
+        {t(locale, "onboarding2.cta")}
+      </PrimaryButton>
     </Screen>
   );
 }

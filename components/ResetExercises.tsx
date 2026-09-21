@@ -12,33 +12,10 @@ import {
 } from "./ui";
 import { useAppStore } from "@/lib/store";
 import { track } from "@/lib/analytics";
+import { t, type TranslationKey } from "@/lib/i18n";
 
 type ExerciseId = "sigh" | "shake" | "grounding";
 type Stage = "select" | "intro" | "run" | "done";
-
-interface ExerciseInfo {
-  title: string;
-  blurb: string;
-  intro: string;
-}
-
-const EXERCISES: Record<ExerciseId, ExerciseInfo> = {
-  sigh: {
-    title: "Physiological sigh",
-    blurb: "30 seconds",
-    intro: "Two short breaths in through your nose, one long breath out through your mouth.",
-  },
-  shake: {
-    title: "Shake it out",
-    blurb: "20 seconds",
-    intro: "Shake your hands, arms and shoulders. Let the tension go.",
-  },
-  grounding: {
-    title: "5-4-3-2-1 grounding",
-    blurb: "At your own pace",
-    intro: "Five quick steps. Name what you notice, out loud or in your head.",
-  },
-};
 
 const ORDER: ExerciseId[] = ["sigh", "shake", "grounding"];
 
@@ -51,18 +28,18 @@ const SIGH_TOP_UP_S = 1;
 
 // Shake it out: 20s repartidos entre manos, brazos y hombros.
 const SHAKE_SECONDS = 20;
-const SHAKE_PROMPTS = [
-  { until: 7, text: "Shake your hands" },
-  { until: 14, text: "Now your arms" },
-  { until: SHAKE_SECONDS, text: "Now your shoulders" },
+const SHAKE_PROMPTS: { until: number; text: TranslationKey }[] = [
+  { until: 7, text: "reset.shake.hands" },
+  { until: 14, text: "reset.shake.arms" },
+  { until: SHAKE_SECONDS, text: "reset.shake.shoulders" },
 ];
 
-const GROUNDING_STEPS = [
-  { count: 5, text: "things you can see" },
-  { count: 4, text: "things you can feel" },
-  { count: 3, text: "things you can hear" },
-  { count: 2, text: "things you can smell" },
-  { count: 1, text: "thing you can taste" },
+const GROUNDING_STEPS: { count: number; text: TranslationKey }[] = [
+  { count: 5, text: "reset.grounding.see" },
+  { count: 4, text: "reset.grounding.feel" },
+  { count: 3, text: "reset.grounding.hear" },
+  { count: 2, text: "reset.grounding.smell" },
+  { count: 1, text: "reset.grounding.taste" },
 ];
 
 // Segundos transcurridos desde que se monta; llama onDone una vez al llegar a `total`.
@@ -90,20 +67,21 @@ function useExerciseClock(total: number, onDone: () => void) {
 }
 
 function SighRun({ onDone, onSkip }: { onDone: () => void; onSkip: () => void }) {
+  const locale = useAppStore((s) => s.locale);
   const elapsed = useExerciseClock(SIGH_SECONDS, onDone);
   const secondsLeft = Math.ceil(SIGH_SECONDS - elapsed);
   const inCycle = elapsed % SIGH_CYCLE_S;
 
-  const label =
+  const label: TranslationKey =
     inCycle < SIGH_INHALE_S
-      ? "Breathe in"
+      ? "reset.sigh.in"
       : inCycle < SIGH_INHALE_S + SIGH_TOP_UP_S
-      ? "Breathe in again"
-      : "Long breath out";
+      ? "reset.sigh.inAgain"
+      : "reset.sigh.out";
 
   return (
     <Screen>
-      <Statement>Physiological sigh</Statement>
+      <Statement>{t(locale, "reset.sigh.title")}</Statement>
 
       <div className="h-56 w-56 flex items-center justify-center">
         <div
@@ -113,11 +91,11 @@ function SighRun({ onDone, onSkip }: { onDone: () => void; onSkip: () => void })
       </div>
 
       <div className="flex flex-col items-center gap-2">
-        <p className="text-[15px] tracking-wide text-stone">{label}</p>
+        <p className="text-[15px] tracking-wide text-stone">{t(locale, label)}</p>
         <p className="font-display text-[40px] tabular-nums text-ink">{secondsLeft}</p>
       </div>
 
-      <TextLink onClick={onSkip}>Skip</TextLink>
+      <TextLink onClick={onSkip}>{t(locale, "common.skip")}</TextLink>
 
       <style jsx>{`
         @keyframes sigh-cycle {
@@ -140,46 +118,48 @@ function SighRun({ onDone, onSkip }: { onDone: () => void; onSkip: () => void })
 }
 
 function ShakeRun({ onDone, onSkip }: { onDone: () => void; onSkip: () => void }) {
+  const locale = useAppStore((s) => s.locale);
   const elapsed = useExerciseClock(SHAKE_SECONDS, onDone);
   const secondsLeft = Math.ceil(SHAKE_SECONDS - elapsed);
   const prompt = (SHAKE_PROMPTS.find((p) => elapsed < p.until) ?? SHAKE_PROMPTS[2]).text;
 
   return (
     <Screen>
-      <Statement>Shake it out</Statement>
+      <Statement>{t(locale, "reset.shake.title")}</Statement>
 
       <div className="flex flex-col items-center gap-6">
-        <p className="text-[17px] text-ink">{prompt}</p>
+        <p className="text-[17px] text-ink">{t(locale, prompt)}</p>
         <p className="font-display text-[56px] tabular-nums text-ink">{secondsLeft}</p>
       </div>
 
-      <TextLink onClick={onSkip}>Skip</TextLink>
+      <TextLink onClick={onSkip}>{t(locale, "common.skip")}</TextLink>
     </Screen>
   );
 }
 
 function GroundingRun({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
   const [step, setStep] = useState(0);
+  const locale = useAppStore((s) => s.locale);
   const current = GROUNDING_STEPS[step];
   const isLast = step === GROUNDING_STEPS.length - 1;
 
   return (
     <Screen>
       <SmallLabel>
-        Step {step + 1} of {GROUNDING_STEPS.length}
+        {t(locale, "reset.grounding.step", { n: step + 1, total: GROUNDING_STEPS.length })}
       </SmallLabel>
 
       <div className="flex flex-col items-center gap-4">
         <p className="font-display text-[64px] text-ink">{current.count}</p>
-        <Statement>{current.text}</Statement>
-        <Subtext>Take your time.</Subtext>
+        <Statement>{t(locale, current.text)}</Statement>
+        <Subtext>{t(locale, "reset.grounding.takeYourTime")}</Subtext>
       </div>
 
       <div className="w-full flex flex-col gap-4">
         <PrimaryButton onClick={() => (isLast ? onDone() : setStep(step + 1))}>
-          {isLast ? "Done" : "Next"}
+          {t(locale, isLast ? "common.done" : "common.next")}
         </PrimaryButton>
-        <TextLink onClick={onBack}>Back</TextLink>
+        <TextLink onClick={onBack}>{t(locale, "common.back")}</TextLink>
       </div>
     </Screen>
   );
@@ -188,6 +168,7 @@ function GroundingRun({ onDone, onBack }: { onDone: () => void; onBack: () => vo
 export default function ResetExercises() {
   const [stage, setStage] = useState<Stage>("select");
   const [exercise, setExercise] = useState<ExerciseId | null>(null);
+  const locale = useAppStore((s) => s.locale);
   const setView = useAppStore((s) => s.setView);
 
   function handlePick(id: ExerciseId) {
@@ -214,9 +195,11 @@ export default function ResetExercises() {
   if (stage === "done") {
     return (
       <Screen>
-        <Statement>Are we ready now?</Statement>
+        <Statement>{t(locale, "reset.ready")}</Statement>
         <div className="w-full">
-          <PrimaryButton onClick={() => setView("next-action")}>Start again</PrimaryButton>
+          <PrimaryButton onClick={() => setView("next-action")}>
+            {t(locale, "reset.startAgain")}
+          </PrimaryButton>
         </div>
       </Screen>
     );
@@ -233,16 +216,15 @@ export default function ResetExercises() {
   }
 
   if (stage === "intro" && exercise) {
-    const info = EXERCISES[exercise];
     return (
       <Screen>
         <div className="flex flex-col gap-3">
-          <Statement>{info.title}</Statement>
-          <Subtext>{info.intro}</Subtext>
+          <Statement>{t(locale, `reset.${exercise}.title`)}</Statement>
+          <Subtext>{t(locale, `reset.${exercise}.intro`)}</Subtext>
         </div>
         <div className="w-full flex flex-col gap-4">
-          <PrimaryButton onClick={handleStart}>Start</PrimaryButton>
-          <TextLink onClick={handleBackToSelect}>Back</TextLink>
+          <PrimaryButton onClick={handleStart}>{t(locale, "common.start")}</PrimaryButton>
+          <TextLink onClick={handleBackToSelect}>{t(locale, "common.back")}</TextLink>
         </div>
       </Screen>
     );
@@ -251,20 +233,20 @@ export default function ResetExercises() {
   return (
     <Screen>
       <div className="flex flex-col gap-3">
-        <Statement>Quick reset.</Statement>
-        <Subtext>Pick one. Nothing else.</Subtext>
+        <Statement>{t(locale, "reset.title")}</Statement>
+        <Subtext>{t(locale, "reset.subtitle")}</Subtext>
       </div>
       <div className="w-full flex flex-col gap-3">
         {ORDER.map((id) => (
           <SecondaryButton key={id} onClick={() => handlePick(id)}>
-            <span className="block">{EXERCISES[id].title}</span>
+            <span className="block">{t(locale, `reset.${id}.title`)}</span>
             <span className="block text-[13px] text-stone font-normal">
-              {EXERCISES[id].blurb}
+              {t(locale, `reset.${id}.blurb`)}
             </span>
           </SecondaryButton>
         ))}
       </div>
-      <TextLink onClick={() => setView("next-action")}>Back</TextLink>
+      <TextLink onClick={() => setView("next-action")}>{t(locale, "common.back")}</TextLink>
     </Screen>
   );
 }

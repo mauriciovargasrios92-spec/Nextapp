@@ -2,18 +2,20 @@
 
 import { Screen, Statement, Subtext, PrimaryButton } from "./ui";
 import { useAppStore } from "@/lib/store";
+import { t } from "@/lib/i18n";
 
 export default function Onboarding1() {
+  const locale = useAppStore((s) => s.locale);
   const setView = useAppStore((s) => s.setView);
 
   return (
     <Screen>
       <div className="flex flex-col gap-5">
-        <Statement>Too much in your head?</Statement>
-        <Subtext>Tell us everything. We&apos;ll help you find the next step.</Subtext>
+        <Statement>{t(locale, "onboarding1.title")}</Statement>
+        <Subtext>{t(locale, "onboarding1.subtitle")}</Subtext>
       </div>
       <PrimaryButton onClick={() => setView("onboarding-2")}>
-        Get started
+        {t(locale, "onboarding1.cta")}
       </PrimaryButton>
     </Screen>
   );

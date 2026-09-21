@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Screen, Statement, Subtext, PrimaryButton, TextLink } from "./ui";
 import { useAppStore } from "@/lib/store";
 import { track } from "@/lib/analytics";
+import { t, SPEECH_LANG, type Locale, type TranslationKey } from "@/lib/i18n";
 
 // Ciclo de respiración: 4s inhale, 4s hold, 6s exhale, 6s hold = 20s por ciclo.
 // 60s / 20s = exactamente 3 ciclos completos.
@@ -30,17 +31,18 @@ function getPhaseInfo(elapsedInCycle: number): { phase: Phase; count: number } {
   return { phase: "hold2", count: elapsedInCycle - INHALE_S - HOLD1_S - EXHALE_S + 1 };
 }
 
-const PHASE_LABEL: Record<Phase, string> = {
-  inhale: "Inhale",
-  hold1: "Hold",
-  exhale: "Exhale",
-  hold2: "Hold",
+const PHASE_LABEL: Record<Phase, TranslationKey> = {
+  inhale: "breathing.inhale",
+  hold1: "breathing.hold",
+  exhale: "breathing.exhale",
+  hold2: "breathing.hold",
 };
 
-function speak(text: string) {
+function speak(text: string, locale: Locale) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   try {
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = SPEECH_LANG[locale];
     utterance.rate = 0.82;
     utterance.pitch = 0.75;
     utterance.volume = 0.9;
@@ -57,7 +59,12 @@ export default function Breathing() {
   const [countdownValue, setCountdownValue] = useState(3);
   const [phase, setPhase] = useState<Phase>("inhale");
   const [secondsLeft, setSecondsLeft] = useState(TOTAL_SECONDS);
+  const locale = useAppStore((s) => s.locale);
   const setView = useAppStore((s) => s.setView);
+
+  // Las voces se generan dentro de timers; el ref evita usar un idioma desactualizado.
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
@@ -131,14 +138,14 @@ export default function Breathing() {
     if (stage !== "countdown") return;
 
     setCountdownValue(3);
-    speak("3");
+    speak("3", localeRef.current);
     const t2 = setTimeout(() => {
       setCountdownValue(2);
-      speak("2");
+      speak("2", localeRef.current);
     }, 1000);
     const t1 = setTimeout(() => {
       setCountdownValue(1);
-      speak("1");
+      speak("1", localeRef.current);
     }, 2000);
     const tGo = setTimeout(() => {
       setStage("breathing");
@@ -174,16 +181,17 @@ export default function Breathing() {
       if (lastSpokenKeyRef.current !== key) {
         lastSpokenKeyRef.current = key;
         const isLastCycle = cycleIndex === TOTAL_CYCLES - 1;
+        const l = localeRef.current;
         if (count === 1) {
           if (currentPhase === "inhale") {
-            speak(isLastCycle ? "Last breath" : "Breathe in");
+            speak(t(l, isLastCycle ? "breathing.say.last" : "breathing.say.in"), l);
           } else if (currentPhase === "exhale") {
-            speak("Breathe out");
+            speak(t(l, "breathing.say.out"), l);
           } else {
-            speak("Hold");
+            speak(t(l, "breathing.say.hold"), l);
           }
         } else {
-          speak(String(count));
+          speak(String(count), l);
         }
       }
     };
@@ -213,7 +221,7 @@ export default function Breathing() {
   if (stage === "done") {
     return (
       <Screen>
-        <Statement>Ready.</Statement>
+        <Statement>{t(locale, "breathing.ready")}</Statement>
       </Screen>
     );
   }
@@ -222,16 +230,16 @@ export default function Breathing() {
     return (
       <Screen>
         <div className="flex flex-col gap-3">
-          <Statement>Reset.</Statement>
-          <Subtext>60 seconds. Nothing else.</Subtext>
+          <Statement>{t(locale, "breathing.title")}</Statement>
+          <Subtext>{t(locale, "breathing.duration")}</Subtext>
         </div>
         <div className="rounded-2xl border border-stone-light bg-white/50 px-5 py-4 flex flex-col gap-1">
-          <p className="text-[14px] text-stone">Best used with headphones.</p>
-          <p className="text-[14px] text-stone">Close your eyes when you're ready.</p>
+          <p className="text-[14px] text-stone">{t(locale, "breathing.headphones")}</p>
+          <p className="text-[14px] text-stone">{t(locale, "breathing.eyes")}</p>
         </div>
         <div className="w-full flex flex-col gap-4">
-          <PrimaryButton onClick={handleStart}>Start</PrimaryButton>
-          <TextLink onClick={() => setView("next-action")}>Skip</TextLink>
+          <PrimaryButton onClick={handleStart}>{t(locale, "common.start")}</PrimaryButton>
+          <TextLink onClick={() => setView("next-action")}>{t(locale, "common.skip")}</TextLink>
         </div>
       </Screen>
     );
@@ -240,7 +248,7 @@ export default function Breathing() {
   if (stage === "countdown") {
     return (
       <Screen>
-        <Subtext>Get ready.</Subtext>
+        <Subtext>{t(locale, "breathing.getReady")}</Subtext>
         <p className="font-display text-[64px] text-ink">{countdownValue}</p>
       </Screen>
     );
@@ -249,7 +257,7 @@ export default function Breathing() {
   return (
     <Screen>
       <div className="flex flex-col gap-3">
-        <Statement>Reset.</Statement>
+        <Statement>{t(locale, "breathing.title")}</Statement>
       </div>
 
       <div className="h-56 w-56 flex items-center justify-center">
@@ -260,11 +268,11 @@ export default function Breathing() {
       </div>
 
       <div className="flex flex-col items-center gap-2">
-        <p className="text-[15px] tracking-wide text-stone">{PHASE_LABEL[phase]}</p>
+        <p className="text-[15px] tracking-wide text-stone">{t(locale, PHASE_LABEL[phase])}</p>
         <p className="font-display text-[40px] tabular-nums text-ink">{secondsLeft}</p>
       </div>
 
-      <TextLink onClick={handleSkip}>Skip</TextLink>
+      <TextLink onClick={handleSkip}>{t(locale, "common.skip")}</TextLink>
 
       <style jsx>{`
         @keyframes breathe-cycle {

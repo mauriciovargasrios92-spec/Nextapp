@@ -16,10 +16,15 @@ import Completion from "@/components/Completion";
 export default function Home() {
   const view = useAppStore((s) => s.view);
   const initLocale = useAppStore((s) => s.initLocale);
+  const hydrated = useAppStore((s) => s.hydrated);
 
   useEffect(() => {
     initLocale();
+    useAppStore.persist.rehydrate();
   }, [initLocale]);
+
+  // Hasta leer localStorage no sabemos qué pantalla toca; evita un parpadeo de onboarding.
+  if (!hydrated) return null;
 
   switch (view) {
     case "onboarding-1":

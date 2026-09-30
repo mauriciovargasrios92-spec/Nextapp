@@ -25,6 +25,8 @@ export type StuckReason =
   | "low_energy"
   | "overwhelmed";
 
+export type ExerciseId = "sigh" | "shake" | "grounding";
+
 export type ViewState =
   | "onboarding-1"
   | "onboarding-2"

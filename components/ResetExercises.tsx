@@ -13,8 +13,8 @@ import {
 import { useAppStore } from "@/lib/store";
 import { track } from "@/lib/analytics";
 import { t, type TranslationKey } from "@/lib/i18n";
+import type { ExerciseId } from "@/lib/types";
 
-type ExerciseId = "sigh" | "shake" | "grounding";
 type Stage = "select" | "intro" | "run" | "done";
 
 const ORDER: ExerciseId[] = ["sigh", "shake", "grounding"];
@@ -166,19 +166,39 @@ function GroundingRun({ onDone, onBack }: { onDone: () => void; onBack: () => vo
 }
 
 export default function ResetExercises() {
-  const [stage, setStage] = useState<Stage>("select");
-  const [exercise, setExercise] = useState<ExerciseId | null>(null);
+  const autoExercise = useAppStore((s) => s.autoExercise);
+  const setAutoExercise = useAppStore((s) => s.setAutoExercise);
+
+  // Si llegamos con un ejercicio pre-elegido (desde Stuck.tsx), lo arrancamos
+  // directo, sin mostrar el menú de 3 opciones — esa decisión ya se tomó
+  // según el motivo ("overwhelmed" -> sigh, "low energy" -> shake).
+  const [auto] = useState(() => autoExercise);
+  const [stage, setStage] = useState<Stage>(auto ? "intro" : "select");
+  const [exercise, setExercise] = useState<ExerciseId | null>(auto);
   const locale = useAppStore((s) => s.locale);
   const setView = useAppStore((s) => s.setView);
+
+  useEffect(() => {
+    // Se consume una sola vez; si el usuario vuelve a esta pantalla después
+    // (por ejemplo desde el timer de foco), no debe seguir auto-eligiendo.
+    if (autoExercise) setAutoExercise(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Cuando el ejercicio fue elegido automáticamente, "Back"/"Skip" te saca
+  // directo a la tarea en vez de mostrarte el menú que nunca elegiste ver.
+  function handleExit() {
+    if (auto) {
+      setView("next-action");
+    } else {
+      setExercise(null);
+      setStage("select");
+    }
+  }
 
   function handlePick(id: ExerciseId) {
     setExercise(id);
     setStage("intro");
-  }
-
-  function handleBackToSelect() {
-    setExercise(null);
-    setStage("select");
   }
 
   function handleStart() {
@@ -207,12 +227,12 @@ export default function ResetExercises() {
 
   if (stage === "run" && exercise) {
     if (exercise === "sigh") {
-      return <SighRun onDone={handleDone} onSkip={handleBackToSelect} />;
+      return <SighRun onDone={handleDone} onSkip={handleExit} />;
     }
     if (exercise === "shake") {
-      return <ShakeRun onDone={handleDone} onSkip={handleBackToSelect} />;
+      return <ShakeRun onDone={handleDone} onSkip={handleExit} />;
     }
-    return <GroundingRun onDone={handleDone} onBack={handleBackToSelect} />;
+    return <GroundingRun onDone={handleDone} onBack={handleExit} />;
   }
 
   if (stage === "intro" && exercise) {
@@ -224,7 +244,7 @@ export default function ResetExercises() {
         </div>
         <div className="w-full flex flex-col gap-4">
           <PrimaryButton onClick={handleStart}>{t(locale, "common.start")}</PrimaryButton>
-          <TextLink onClick={handleBackToSelect}>{t(locale, "common.back")}</TextLink>
+          <TextLink onClick={handleExit}>{t(locale, "common.back")}</TextLink>
         </div>
       </Screen>
     );

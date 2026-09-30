@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { StuckReason, Task, ViewState } from "./types";
+import type { StuckReason, Task, ViewState, ExerciseId } from "./types";
 import type { Locale } from "./i18n";
 
 const LOCALE_KEY = "next-locale";
@@ -61,6 +61,10 @@ interface AppState {
   breathingReturnView: ViewState;
   locale: Locale;
   hydrated: boolean;
+  // Cuando se navega a "reset" con esto lleno, salta directo a ese ejercicio
+  // sin mostrar el menú de elegir entre los 3 (evita pedirle otra decisión
+  // a alguien que ya está saturado/con poca energía).
+  autoExercise: ExerciseId | null;
 
   setLocale: (locale: Locale) => void;
   initLocale: () => void;
@@ -76,6 +80,7 @@ interface AppState {
   ) => void;
   pickNextTask: () => string | null;
   setStuckReason: (r: StuckReason | null) => void;
+  setAutoExercise: (id: ExerciseId | null) => void;
   reset: () => void;
 }
 
@@ -93,6 +98,7 @@ export const useAppStore = create<AppState>()(
       // initLocale() detecta el idioma real en el cliente al montar la app.
       locale: "en",
       hydrated: false,
+      autoExercise: null,
 
       setLocale: (locale) => {
         set({ locale });
@@ -146,6 +152,8 @@ export const useAppStore = create<AppState>()(
       },
 
       setStuckReason: (r) => set({ stuckReason: r }),
+
+      setAutoExercise: (id) => set({ autoExercise: id }),
 
       reset: () =>
         set({

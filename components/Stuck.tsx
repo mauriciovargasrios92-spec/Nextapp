@@ -22,11 +22,14 @@ export default function Stuck() {
   const setView = useAppStore((s) => s.setView);
   const overrideFirstStep = useAppStore((s) => s.overrideCurrentTaskFirstStep);
   const setCurrentTask = useAppStore((s) => s.setCurrentTask);
+  const setAutoExercise = useAppStore((s) => s.setAutoExercise);
 
   const task = tasks.find((t) => t.id === currentTaskId);
 
   async function handleOption(reason: StuckReason) {
     if (reason === "overwhelmed") {
+      // Va directo al suspiro fisiológico, sin pedirle que elija entre opciones.
+      setAutoExercise("sigh");
       setView("reset");
       return;
     }
@@ -42,7 +45,9 @@ export default function Stuck() {
           );
         })[0];
       if (easier) setCurrentTask(easier.id);
-      setView("next-action");
+      // Shake it out activa el cuerpo (mueve, no calma) antes de mostrar la tarea más fácil.
+      setAutoExercise("shake");
+      setView("reset");
       return;
     }
 
@@ -56,7 +61,7 @@ export default function Stuck() {
       const res = await fetch("/api/breakdown", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskTitle: task.title, stuckReason: reason }),
+        body: JSON.stringify({ taskTitle: task.title, stuckReason: reason, locale }),
       });
       const data = await res.json();
       overrideFirstStep(data.first_step);
@@ -81,7 +86,13 @@ export default function Stuck() {
         ))}
       </div>
       <div className="flex flex-col items-center gap-4">
-        <TextLink disabled={loading} onClick={() => setView("reset")}>
+        <TextLink
+          disabled={loading}
+          onClick={() => {
+            setAutoExercise("sigh");
+            setView("reset");
+          }}
+        >
           {t(locale, "stuck.quickReset")}
         </TextLink>
         <TextLink onClick={() => setView("next-action")}>{t(locale, "common.back")}</TextLink>

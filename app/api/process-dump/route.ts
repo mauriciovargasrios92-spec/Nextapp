@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/ai-prompt";
 import { callClaude, parseJSONSafe } from "@/lib/anthropic";
 import type { AIRecommendation, Task } from "@/lib/types";
+import { matchCategory } from "@/lib/task-categories";
 
 export const runtime = "nodejs";
 
@@ -41,59 +42,6 @@ function toClientTasks(raw: RawAIResponse): AIRecommendation {
   };
 }
 
-/**
- * Diccionario de palabras clave (ES/EN) -> duración estimada y energía.
- * Usado solo por el fallback sin AI, para que la demo se sienta razonable
- * aunque todavía no haya una ANTHROPIC_API_KEY configurada.
- */
-const KEYWORD_RULES: {
-  keywords: string[];
-  minutes: number;
-  energy: Task["energy_required"];
-}[] = [
-  {
-    keywords: ["responder", "reply", "email", "correo", "mensaje", "message", "texto", "textear"],
-    minutes: 5,
-    energy: "low",
-  },
-  { keywords: ["llamar", "llamada", "call"], minutes: 10, energy: "low" },
-  {
-    keywords: ["factura", "invoice", "pago", "payment", "pagar", "cobrar"],
-    minutes: 15,
-    energy: "low",
-  },
-  {
-    keywords: ["comprar", "mandado", "groceries", "compras", "supermercado"],
-    minutes: 20,
-    energy: "medium",
-  },
-  {
-    keywords: ["limpiar", "organizar", "ordenar", "clean", "organize", "tidy"],
-    minutes: 25,
-    energy: "medium",
-  },
-  { keywords: ["reunion", "reunión", "meeting", "junta", "call de trabajo"], minutes: 30, energy: "medium" },
-  {
-    keywords: ["ejercicio", "gym", "gimnasio", "entrenar", "workout", "correr", "run"],
-    minutes: 40,
-    energy: "high",
-  },
-  {
-    keywords: [
-      "presentacion",
-      "presentación",
-      "reporte",
-      "informe",
-      "presentation",
-      "report",
-      "propuesta",
-      "proposal",
-    ],
-    minutes: 60,
-    energy: "high",
-  },
-];
-
 const DEFAULT_MINUTES = 15;
 const DEFAULT_ENERGY: Task["energy_required"] = "medium";
 
@@ -106,10 +54,7 @@ function estimateTask(title: string): {
   energy: Task["energy_required"];
   canBreakDown: boolean;
 } {
-  const lower = title.toLowerCase();
-  const match = KEYWORD_RULES.find((rule) =>
-    rule.keywords.some((kw) => lower.includes(kw))
-  );
+  const match = matchCategory(title);
 
   if (match) {
     return { minutes: match.minutes, energy: match.energy, canBreakDown: match.minutes >= 45 };

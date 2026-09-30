@@ -20,9 +20,26 @@ function detectLocale(): Locale {
   return "en";
 }
 
-// Mayor urgencia+importancia primero.
-function highestPriority(tasks: Task[]): Task | undefined {
-  return [...tasks].sort((a, b) => b.urgency + b.importance - (a.urgency + a.importance))[0];
+// Mayor urgencia+importancia primero; a igual prioridad, la Regla de
+// Goldilocks (Atomic Habits) desempata: después de 2 tareas fáciles seguidas
+// favorece algo con más reto, después de una difícil favorece algo más liviano.
+function goldilocksBonus(task: Task, recentFeedback: Task["difficulty_feedback"][]): number {
+  if (recentFeedback.length === 0) return 0;
+  const energyScore = { low: 0, medium: 1, high: 2 }[task.energy_required];
+  const last = recentFeedback[recentFeedback.length - 1];
+  const lastTwoEasy =
+    recentFeedback.length >= 2 && recentFeedback.slice(-2).every((f) => f === "easy");
+  if (lastTwoEasy) return energyScore; // favorece más reto
+  if (last === "hard") return -energyScore; // favorece algo más liviano
+  return 0;
+}
+
+function highestPriority(tasks: Task[], recentFeedback: Task["difficulty_feedback"][] = []): Task | undefined {
+  return [...tasks].sort((a, b) => {
+    const priorityDiff = b.urgency + b.importance - (a.urgency + a.importance);
+    if (priorityDiff !== 0) return priorityDiff;
+    return goldilocksBonus(b, recentFeedback) - goldilocksBonus(a, recentFeedback);
+  })[0];
 }
 
 type PersistedState = Pick<
@@ -65,6 +82,11 @@ interface AppState {
   // sin mostrar el menú de elegir entre los 3 (evita pedirle otra decisión
   // a alguien que ya está saturado/con poca energía).
   autoExercise: ExerciseId | null;
+  // Últimas 2 respuestas de "¿cómo se sintió?" — alimenta la Regla de Goldilocks.
+  recentFeedback: Task["difficulty_feedback"][];
+  // Cuando "Just 2 minutes" se usa en vez de "Start", fuerza el timer de foco
+  // a 2 minutos sin importar la duración estimada de la tarea.
+  focusOverrideMinutes: number | null;
 
   setLocale: (locale: Locale) => void;
   initLocale: () => void;
@@ -81,6 +103,10 @@ interface AppState {
   pickNextTask: () => string | null;
   setStuckReason: (r: StuckReason | null) => void;
   setAutoExercise: (id: ExerciseId | null) => void;
+  setFocusOverrideMinutes: (minutes: number | null) => void;
+  // Incrementa el contador de "stuck" de una tarea y devuelve el nuevo valor,
+  // para decidir en el componente si mostrar el menú o saltarlo (never miss twice).
+  incrementStuckCount: (taskId: string) => number;
   reset: () => void;
 }
 
@@ -99,6 +125,8 @@ export const useAppStore = create<AppState>()(
       locale: "en",
       hydrated: false,
       autoExercise: null,
+      recentFeedback: [],
+      focusOverrideMinutes: null,
 
       setLocale: (locale) => {
         set({ locale });
@@ -129,7 +157,8 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      markTaskStatus: (id, status, difficulty) =>
+      markTaskStatus: (id, status, difficulty) => {
+        const feedback = get().recentFeedback;
         set({
           tasks: get().tasks.map((t) =>
             t.id === id
@@ -137,16 +166,20 @@ export const useAppStore = create<AppState>()(
                   ...t,
                   status,
                   difficulty_feedback: difficulty ?? t.difficulty_feedback,
+                  // Se resuelve la tarea: el conteo de "stuck" ya no aplica.
+                  stuck_count: status === "done" || status === "skipped" ? 0 : t.stuck_count,
                 }
               : t
           ),
-        }),
+          recentFeedback: difficulty ? [...feedback, difficulty].slice(-2) : feedback,
+        });
+      },
 
-      // Elige la siguiente tarea pendiente por urgencia+importancia, sin llamar a la AI de nuevo.
+      // Elige la siguiente tarea pendiente por urgencia+importancia (y Goldilocks), sin llamar a la AI de nuevo.
       pickNextTask: () => {
         const pending = get().tasks.filter((t) => t.status === "pending");
         if (pending.length === 0) return null;
-        const next = highestPriority(pending)!;
+        const next = highestPriority(pending, get().recentFeedback)!;
         set({ currentTaskId: next.id });
         return next.id;
       },
@@ -154,6 +187,18 @@ export const useAppStore = create<AppState>()(
       setStuckReason: (r) => set({ stuckReason: r }),
 
       setAutoExercise: (id) => set({ autoExercise: id }),
+
+      setFocusOverrideMinutes: (minutes) => set({ focusOverrideMinutes: minutes }),
+
+      incrementStuckCount: (taskId) => {
+        const tasks = get().tasks;
+        const task = tasks.find((t) => t.id === taskId);
+        const newCount = (task?.stuck_count ?? 0) + 1;
+        set({
+          tasks: tasks.map((t) => (t.id === taskId ? { ...t, stuck_count: newCount } : t)),
+        });
+        return newCount;
+      },
 
       reset: () =>
         set({

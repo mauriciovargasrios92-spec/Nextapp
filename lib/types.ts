@@ -11,6 +11,9 @@ export interface Task {
   first_step?: string;
   status: "pending" | "active" | "done" | "skipped";
   difficulty_feedback?: "easy" | "fine" | "hard";
+  // Cuántas veces seguidas se tocó "I'm stuck" para esta tarea sin completarla.
+  // Se usa para no volver a preguntar "¿qué se interpone?" la segunda vez.
+  stuck_count?: number;
 }
 
 export interface AIRecommendation {

@@ -1,17 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import { Screen, Statement, SmallLabel, PrimaryButton, TextLink } from "./ui";
 import { useAppStore } from "@/lib/store";
 import { track } from "@/lib/analytics";
 import { t } from "@/lib/i18n";
+import { fetchFirstStep } from "@/lib/stuck-flow";
 
 export default function NextAction() {
+  const [loading, setLoading] = useState(false);
   const locale = useAppStore((s) => s.locale);
   const tasks = useAppStore((s) => s.tasks);
   const currentTaskId = useAppStore((s) => s.currentTaskId);
   const setView = useAppStore((s) => s.setView);
   const markTaskStatus = useAppStore((s) => s.markTaskStatus);
   const pickNextTask = useAppStore((s) => s.pickNextTask);
+  const incrementStuckCount = useAppStore((s) => s.incrementStuckCount);
+  const overrideFirstStep = useAppStore((s) => s.overrideCurrentTaskFirstStep);
+  const setFocusOverrideMinutes = useAppStore((s) => s.setFocusOverrideMinutes);
 
   const task = tasks.find((t) => t.id === currentTaskId);
   const waitingCount = tasks.filter(
@@ -36,6 +42,14 @@ export default function NextAction() {
     setView("focus");
   }
 
+  function handleJust2Min() {
+    if (!task) return;
+    markTaskStatus(task.id, "active");
+    track("task_started", { task_id: task.id, mode: "2min" });
+    setFocusOverrideMinutes(2);
+    setView("focus");
+  }
+
   function handleNotNow() {
     if (!task) return;
     markTaskStatus(task.id, "skipped");
@@ -44,8 +58,26 @@ export default function NextAction() {
     if (!next) setView("dump");
   }
 
-  function handleStuck() {
-    track("stuck_clicked", { task_id: task?.id });
+  // "Never miss twice" (Atomic Habits): si ya se tocó "stuck" antes en esta
+  // misma tarea sin resolverla, la segunda vez no se vuelve a preguntar qué
+  // se interpone — se asume que el primer paso ofrecido no alcanzó y se
+  // pide directo uno todavía más pequeño.
+  async function handleStuck() {
+    if (!task) return;
+    const count = incrementStuckCount(task.id);
+    track("stuck_clicked", { task_id: task.id, count });
+
+    if (count >= 2) {
+      setLoading(true);
+      try {
+        const firstStep = await fetchFirstStep(task.title, "too_big", locale);
+        overrideFirstStep(firstStep);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setView("stuck");
   }
 
@@ -58,10 +90,19 @@ export default function NextAction() {
       </div>
 
       <div className="w-full flex flex-col gap-4">
-        <PrimaryButton onClick={handleStart}>{t(locale, "common.start")}</PrimaryButton>
+        <PrimaryButton onClick={handleStart} disabled={loading}>
+          {t(locale, "common.start")}
+        </PrimaryButton>
+        <TextLink onClick={handleJust2Min} disabled={loading}>
+          {t(locale, "nextAction.just2min")}
+        </TextLink>
         <div className="flex justify-center gap-6">
-          <TextLink onClick={handleStuck}>{t(locale, "common.stuck")}</TextLink>
-          <TextLink onClick={handleNotNow}>{t(locale, "nextAction.notNow")}</TextLink>
+          <TextLink onClick={handleStuck} disabled={loading}>
+            {t(locale, "common.stuck")}
+          </TextLink>
+          <TextLink onClick={handleNotNow} disabled={loading}>
+            {t(locale, "nextAction.notNow")}
+          </TextLink>
         </div>
       </div>
 

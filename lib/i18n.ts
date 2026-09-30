@@ -38,6 +38,7 @@ const en = {
   "nextAction.about": "About {n} min",
   "nextAction.notNow": "Not now",
   "nextAction.waiting": "{n} things waiting",
+  "nextAction.just2min": "Just 2 minutes",
 
   "stuck.title": "What's getting in the way?",
   "stuck.tooBig": "It feels too big",
@@ -138,6 +139,7 @@ const es: Record<TranslationKey, string> = {
   "nextAction.about": "Unos {n} min",
   "nextAction.notNow": "Ahora no",
   "nextAction.waiting": "{n} cosas en espera",
+  "nextAction.just2min": "Solo 2 minutos",
 
   "stuck.title": "¿Qué se interpone?",
   "stuck.tooBig": "Se siente demasiado grande",
